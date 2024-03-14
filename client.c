@@ -90,7 +90,7 @@ void* send_thread(void* arg) {
             perror("Receive failed");
         }
 
-        usleep(2000000);
+        usleep(200000);
     }
 
     pthread_exit(NULL);
