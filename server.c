@@ -97,11 +97,11 @@ char* receive_from_client(int fd, struct sockaddr_in* client_addr) {
         return NULL;
     }
 
-    printf("Received from %s:%d", inet_ntoa(client_addr->sin_addr), htons(client_addr->sin_port));
+    printf("Received from %s:%d\n", inet_ntoa(client_addr->sin_addr), htons(client_addr->sin_port));
 
     char* msg = malloc(recv_len + 1);
     memcpy(msg, buffer, recv_len);
-    // msg[recv_len] = '\0';
+    msg[recv_len] = '\0';
 
     return msg;
 }
@@ -150,25 +150,14 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
-    char buffer[MAX_BUFF_SIZE];
-
     while (1) {
-
-        socklen_t client_addr_len = sizeof(client_addr);
-        ssize_t recv_len = recvfrom(sockfd, buffer, MAX_BUFF_SIZE, 0, (struct sockaddr*)&client_addr, &client_addr_len);
-
-        if (recv_len == -1) {
-            if (errno != EAGAIN && errno != EWOULDBLOCK) {
-                perror("Receive failed");
-            }
+        
+        char* received_msg = receive_from_client(sockfd, &client_addr);
+        // if nothing to receive, skip this iteration
+        if (received_msg == NULL)
             continue;
-        }
-
-        printf("Received from %s:%d\n", inet_ntoa(client_addr.sin_addr), htons(client_addr.sin_port));
         
-        // char* received_msg = receive_from_client(sockfd, &client_addr);
-        
-        char* extracted = extract_domain(buffer);
+        char* extracted = extract_domain(received_msg);
         if (extracted != NULL) {
             printf("Received DNS query with domain: %s\n", extracted);
             free(extracted);
@@ -176,7 +165,7 @@ int main(int argc, char** argv) {
 
         const char answer[6] = "Roger";
         send_to_client(sockfd, answer, &client_addr);
-        // free(received_msg);
+        free(received_msg);
         // Forward the DNS query to the actual DNS server
         // sendto(dns_sockfd, buffer, recv_len, 0, (const struct sockaddr *)&dns_addr, sizeof(dns_addr));
     }
