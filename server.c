@@ -13,8 +13,10 @@
 #include <fcntl.h>
 #include <linux/if_packet.h>
 
+#include "receive_from_client.h"
+#include "send_to_client.h"
+
 #define PORT           53
-#define MAX_BUFF_SIZE  2048
 #define MAX_DOMAIN_LEN 255
 
 struct DNSHeader {
@@ -81,34 +83,6 @@ char* extract_domain(char* buffer) {
     }
 
     return NULL;
-}
-
-char* receive_from_client(int fd, struct sockaddr_in* client_addr) {
-
-    char buffer[MAX_BUFF_SIZE];
-
-    socklen_t client_addr_len = sizeof(*client_addr);
-    ssize_t recv_len = recvfrom(fd, buffer, MAX_BUFF_SIZE, 0, (struct sockaddr*)client_addr, &client_addr_len);
-
-    if (recv_len == -1) {
-        if (errno != EAGAIN && errno != EWOULDBLOCK) {
-            perror("Receive failed");
-        }
-        return NULL;
-    }
-
-    printf("Received from %s:%d\n", inet_ntoa(client_addr->sin_addr), htons(client_addr->sin_port));
-
-    char* msg = malloc(recv_len + 1);
-    memcpy(msg, buffer, recv_len);
-    msg[recv_len] = '\0';
-
-    return msg;
-}
-
-void send_to_client(int fd, const char* msg, struct sockaddr_in* client_addr) {
-
-    sendto(fd, msg, strlen(msg), 0, (const struct sockaddr*)client_addr, sizeof(*client_addr));
 }
 
 int main(int argc, char** argv) {
