@@ -108,7 +108,7 @@ char* receive_from_client(int fd, struct sockaddr_in* client_addr) {
 
 void send_to_client(int fd, const char* msg, struct sockaddr_in* client_addr) {
 
-    sendto(fd, msg, strlen(msg), 0, (const struct sockaddr*)client_addr, sizeof(client_addr));
+    sendto(fd, msg, strlen(msg), 0, (const struct sockaddr*)client_addr, sizeof(*client_addr));
 }
 
 int main(int argc, char** argv) {
@@ -152,7 +152,6 @@ int main(int argc, char** argv) {
 
     char buffer[MAX_BUFF_SIZE];
 
-
     while (1) {
 
         socklen_t client_addr_len = sizeof(client_addr);
@@ -165,7 +164,7 @@ int main(int argc, char** argv) {
             continue;
         }
 
-        printf("Received from %s:%d", inet_ntoa(client_addr.sin_addr), htons(client_addr.sin_port));
+        printf("Received from %s:%d\n", inet_ntoa(client_addr.sin_addr), htons(client_addr.sin_port));
         
         // char* received_msg = receive_from_client(sockfd, &client_addr);
         
@@ -176,8 +175,7 @@ int main(int argc, char** argv) {
         }
 
         const char answer[6] = "Roger";
-        sendto(sockfd, answer, 5, 0, (const struct sockaddr *)&client_addr, sizeof(client_addr));
-        // send_to_client(sockfd, answer, &client_addr);
+        send_to_client(sockfd, answer, &client_addr);
         // free(received_msg);
         // Forward the DNS query to the actual DNS server
         // sendto(dns_sockfd, buffer, recv_len, 0, (const struct sockaddr *)&dns_addr, sizeof(dns_addr));
