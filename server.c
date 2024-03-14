@@ -26,8 +26,16 @@ struct DNSHeader {
     uint16_t arcount;
 };
 
-char* extract_domain(const uint8_t* dns_payload, int payload_len) {
+char* extract_domain(char* buffer) {
+
+    struct iphdr *ipHeader = (struct iphdr *)buffer;
+    uint16_t ipHeaderLen = ipHeader->ihl * 4;
+    struct udphdr *udpHeader = (struct udphdr *)(buffer + ipHeaderLen);
+    const uint8_t *dns_payload = buffer + ipHeaderLen + sizeof(struct udphdr);
+    int payload_len = ntohs(udpHeader->len) - sizeof(struct udphdr);
+
     struct DNSHeader* dnsHeader = (struct DNSHeader*)dns_payload;
+    uint16_t queryID = ntohs(dnsHeader->id);
 
     if ((ntohs(dnsHeader->flags) & 0x8000) == 0) {
         const uint8_t* question = dns_payload + sizeof(struct DNSHeader);
@@ -75,20 +83,47 @@ char* extract_domain(const uint8_t* dns_payload, int payload_len) {
     return NULL;
 }
 
+char* receive_from_client(int fd, struct sockaddr_in* client_addr) {
+
+    char buffer[MAX_BUFF_SIZE];
+
+    socklen_t client_addr_len = sizeof(*client_addr);
+    ssize_t recv_len = recvfrom(fd, buffer, MAX_BUFF_SIZE, 0, (struct sockaddr*)client_addr, &client_addr_len);
+
+    if (recv_len == -1) {
+        if (errno != EAGAIN && errno != EWOULDBLOCK) {
+            perror("Receive failed");
+        }
+        return NULL;
+    }
+
+    printf("Received from %s:%d", inet_ntoa(client_addr->sin_addr), htons(client_addr->sin_port));
+
+    char* msg = malloc(recv_len + 1);
+    memcpy(msg, buffer, recv_len);
+    // msg[recv_len] = '\0';
+
+    return msg;
+}
+
+void send_to_client(int fd, const char* msg, struct sockaddr_in* client_addr) {
+
+    sendto(fd, msg, strlen(msg), 0, (const struct sockaddr*)client_addr, sizeof(client_addr));
+}
+
 int main(int argc, char** argv) {
     int sockfd, dns_sockfd;
     struct sockaddr_in server_addr, client_addr, dns_addr;
-    char buffer[MAX_BUFF_SIZE];
 
     if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         perror("Socket creation failed");
         exit(1);
     }
 
-    if ((dns_sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        perror("DNS socket creation failed");
-        exit(1);
-    }
+    // if ((dns_sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+    //     perror("DNS socket creation failed");
+    //     exit(1);
+    // }
 
     memset(&server_addr, 0, sizeof(server_addr));
     memset(&client_addr, 0, sizeof(client_addr));
@@ -115,9 +150,13 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
+    char buffer[MAX_BUFF_SIZE];
+
+
     while (1) {
+
         socklen_t client_addr_len = sizeof(client_addr);
-        ssize_t recv_len = recvfrom(sockfd, buffer, MAX_BUFF_SIZE, 0, (struct sockaddr *)&client_addr, &client_addr_len);
+        ssize_t recv_len = recvfrom(sockfd, buffer, MAX_BUFF_SIZE, 0, (struct sockaddr*)&client_addr, &client_addr_len);
 
         if (recv_len == -1) {
             if (errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -126,23 +165,22 @@ int main(int argc, char** argv) {
             continue;
         }
 
-        struct iphdr *ipHeader = (struct iphdr *)buffer;
-        uint16_t ipHeaderLen = ipHeader->ihl * 4;
-        struct udphdr *udpHeader = (struct udphdr *)(buffer + ipHeaderLen);
-        const uint8_t *dnsPayload = buffer + ipHeaderLen + sizeof(struct udphdr);
-        int payloadLength = ntohs(udpHeader->len) - sizeof(struct udphdr);
-
-        struct DNSHeader* dnsHeader = (struct DNSHeader*)dnsPayload;
-        uint16_t queryID = ntohs(dnsHeader->id);
-
-        char *extracted = extract_domain(dnsPayload, payloadLength);
+        printf("Received from %s:%d", inet_ntoa(client_addr.sin_addr), htons(client_addr.sin_port));
+        
+        // char* received_msg = receive_from_client(sockfd, &client_addr);
+        
+        char* extracted = extract_domain(buffer);
         if (extracted != NULL) {
-            printf("Received DNS query with domain: %s, id: %d\n", extracted, queryID);
+            printf("Received DNS query with domain: %s\n", extracted);
             free(extracted);
         }
 
+        const char answer[6] = "Roger";
+        sendto(sockfd, answer, 5, 0, (const struct sockaddr *)&client_addr, sizeof(client_addr));
+        // send_to_client(sockfd, answer, &client_addr);
+        // free(received_msg);
         // Forward the DNS query to the actual DNS server
-        sendto(dns_sockfd, buffer, recv_len, 0, (const struct sockaddr *)&dns_addr, sizeof(dns_addr));
+        // sendto(dns_sockfd, buffer, recv_len, 0, (const struct sockaddr *)&dns_addr, sizeof(dns_addr));
     }
 
     close(sockfd);
