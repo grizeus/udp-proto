@@ -39,6 +39,31 @@ int main() {
     servaddr.sin_port = htons(DNS_PORT);
     inet_pton(AF_INET, "8.8.8.8", &servaddr.sin_addr); // Google's public DNS server
 
+    // Server address setup
+    memset(&servaddr, 0, sizeof(servaddr));
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_port = htons(DNS_PORT);
+    inet_pton(AF_INET, "8.8.8.8", &servaddr.sin_addr); // Google's public DNS server
+
+    // // Prepare DNS query
+    // struct DNSHeader *dns = (struct DNSHeader *)buffer;
+    // dns->id = htons(0x1234); // Random ID
+    // dns->flags = htons(0x0100); // Standard query
+    // dns->qdcount = htons(0x0001); // One question
+    // dns->ancount = 0;
+    // dns->nscount = 0;
+    // dns->arcount = 0;
+
+    // // Add query string
+    // strcpy(buffer + sizeof(struct DNSHeader), "\x06google\x03com\x00"); // google.com
+
+    // // Send the DNS query
+    // if (sendto(sockfd, buffer, sizeof(struct DNSHeader) + strlen("\x06google\x03com\x00") + 1, 0,
+    //            (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) {
+    //     perror("Sendto failed");
+    //     exit(EXIT_FAILURE);
+    // }
+
     unsigned char query[] = {
             0x02, 0x9a, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00,
@@ -57,8 +82,8 @@ int main() {
     ipHeader.ttl = 64; // Time-to-Live
     ipHeader.protocol = IPPROTO_UDP; // UDP protocol
     ipHeader.check = 0; // Checksum will be computed automatically
-    ipHeader.saddr = inet_addr("192.168.1.1"); // Source IP
-    ipHeader.daddr = inet_addr("8.8.8.8"); // Destination IP
+    ipHeader.saddr = inet_addr("172.31.15.255"); // Source IP
+    ipHeader.daddr = inet_addr("1.1.1.1"); // Destination IP
 
     struct udphdr udpHeader;
     udpHeader.source = htons(12345); // Source Port
