@@ -16,7 +16,8 @@
 #include "receive_from_client.h"
 #include "send_to_client.h"
 
-#define PORT           53
+#define DNS_PORT       53
+#define PORT           8888
 #define MAX_DOMAIN_LEN 255
 
 struct DNSHeader {
@@ -94,10 +95,10 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
-    // if ((dns_sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-    //     perror("DNS socket creation failed");
-    //     exit(1);
-    // }
+    if ((dns_sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
+        perror("DNS socket creation failed");
+        exit(1);
+    }
 
     memset(&server_addr, 0, sizeof(server_addr));
     memset(&client_addr, 0, sizeof(client_addr));
@@ -105,11 +106,13 @@ int main(int argc, char** argv) {
 
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
+    // server_addr.sin_addr.s_addr = inet_addr("192.168.10.1");
     server_addr.sin_port = htons(PORT);
+    // inet_pton(AF_INET, "192.168.10.1", &server_addr.sin_addr);
 
     dns_addr.sin_family = AF_INET;
-    dns_addr.sin_addr.s_addr = inet_addr("8.8.8.8"); // Replace with your desired DNS server address
-    dns_addr.sin_port = htons(PORT);
+    dns_addr.sin_port = htons(DNS_PORT);
+    inet_pton(AF_INET, "8.8.8.8", &dns_addr.sin_addr); // Replace with your desired DNS server address
 
     if (bind(sockfd, (const struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         perror("Binding failed");
@@ -123,6 +126,8 @@ int main(int argc, char** argv) {
         perror("Failed to set non-blocking mode");
         exit(1);
     }
+
+    char buffer[MAX_BUFF_SIZE];
 
     while (1) {
         
@@ -139,9 +144,26 @@ int main(int argc, char** argv) {
 
         const char answer[6] = "Roger";
         send_to_client(sockfd, answer, &client_addr);
-        free(received_msg);
         // Forward the DNS query to the actual DNS server
-        // sendto(dns_sockfd, buffer, recv_len, 0, (const struct sockaddr *)&dns_addr, sizeof(dns_addr));
+        sendto(dns_sockfd, received_msg, strlen(received_msg), 0, (const struct sockaddr *)&dns_addr, sizeof(dns_addr));
+        free(received_msg);
+
+        printf("DNS query sent to upstream.\n");
+
+        // Receive the response
+        socklen_t addr_len = sizeof(dns_addr);
+        int recv_len = recvfrom(sockfd, buffer, MAX_BUFF_SIZE, 0, (struct sockaddr *)&dns_addr, &addr_len);
+        if (recv_len < 0) {
+            perror("Recvfrom failed");
+            exit(EXIT_FAILURE);
+        }
+
+        // Print the response
+        printf("Received response from DNS server:");
+        for (int i = 0; i < recv_len; ++i) {
+            printf("%02x ", buffer[i] & 0xFF);
+        }
+        printf("\n");
     }
 
     close(sockfd);

@@ -7,8 +7,6 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#define MAX_BUFF_SIZE  2048
-
 char* receive_from_client(int fd, struct sockaddr_in* client_addr) {
 
     char buffer[MAX_BUFF_SIZE];
