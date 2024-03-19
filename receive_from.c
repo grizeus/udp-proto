@@ -1,4 +1,3 @@
-#include "receive_from_client.h"
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -7,7 +6,9 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-char* receive_from_client(int fd, struct sockaddr_in* client_addr, ssize_t* recv_len) {
+#include "receive_from.h"
+
+char* receive_from(int fd, struct sockaddr_in* client_addr, ssize_t* recv_len) {
 
     char buffer[MAX_BUFF_SIZE];
 
@@ -22,10 +23,6 @@ char* receive_from_client(int fd, struct sockaddr_in* client_addr, ssize_t* recv
     }
 
     printf("Received from %s:%d\n", inet_ntoa(client_addr->sin_addr), htons(client_addr->sin_port));
-
-    // char* msg = malloc(*recv_len + 1);
-    // memcpy(msg, buffer, *recv_len);
-    // msg[*recv_len] = '\0';
 
     char* msg = malloc(*recv_len);
     memcpy(msg, buffer, *recv_len);

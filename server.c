@@ -13,8 +13,8 @@
 #include <fcntl.h>
 #include <linux/if_packet.h>
 
-#include "receive_from_client.h"
-#include "send_to_client.h"
+#include "receive_from.h"
+#include "send_to.h"
 #include "extract_dns.h"
 
 #define DNS_PORT       53
@@ -63,7 +63,7 @@ int main(int argc, char** argv) {
 
     while (1) {
         ssize_t recv_cl_len;
-        char* recv_msg = receive_from_client(sockfd, &client_addr, &recv_cl_len);
+        char* recv_msg = receive_from(sockfd, &client_addr, &recv_cl_len);
         // if nothing to receive, skip this iteration
         if (recv_msg == NULL) {
             usleep(10000);
@@ -83,26 +83,26 @@ int main(int argc, char** argv) {
         }
 
         // Forward the DNS query to the actual DNS server
-        sendto(dns_sockfd, recv_msg, recv_cl_len, 0, (const struct sockaddr *)&dns_addr, sizeof(dns_addr));
+        send_to(dns_sockfd, recv_msg, recv_cl_len, &dns_addr);
         free(recv_msg);
 
         printf("DNS query sent to upstream.\n");
 
         // Receive the response
-        socklen_t addr_len = sizeof(dns_addr);
-        ssize_t recv_up_len = recvfrom(dns_sockfd, buffer, MAX_BUFF_SIZE, 0, (struct sockaddr *)&dns_addr, &addr_len);
+        ssize_t recv_up_len;
+        char* upstream_resp = receive_from(dns_sockfd, &dns_addr, &recv_up_len);
         if (recv_up_len < 0) {
             perror("Recvfrom failed");
             exit(EXIT_FAILURE);
         } else {
             const char answer[6] = "Roger";
-            send_to_client(sockfd, answer, &client_addr);
+            send_to(sockfd, answer, sizeof(answer), &client_addr);
         }
 
         // Print the response
         printf("Received response from DNS server:");
         for (int i = 0; i < recv_up_len; ++i) {
-            printf("%02x ", buffer[i] & 0xFF);
+            printf("%02x ", upstream_resp[i] & 0xFF);
         }
         printf("\n");
 

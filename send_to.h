@@ -3,5 +3,5 @@
 
 #include <netinet/in.h>
 
-void send_to_client(int fd, const char* msg, struct sockaddr_in* client_addr);
+ssize_t send_to(int fd, const char* msg, ssize_t msg_len, struct sockaddr_in* addr);
 #endif // !SEND_TO_CLIENT_H

@@ -6,5 +6,5 @@
 
 #define MAX_BUFF_SIZE  2048
 
-char* receive_from_client(int fd, struct sockaddr_in* client_addr, ssize_t* recv_len);
+char* receive_from(int fd, struct sockaddr_in* client_addr, ssize_t* recv_len);
 #endif // !RECEIVE_FROM_CLIENT_H
